@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/serial_logger.dir/src/main.cpp.o -o serial_logger 

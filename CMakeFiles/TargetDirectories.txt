@@ -1,0 +1,3 @@
+/home/vishnu/serial_logger/build/CMakeFiles/serial_logger.dir
+/home/vishnu/serial_logger/build/CMakeFiles/edit_cache.dir
+/home/vishnu/serial_logger/build/CMakeFiles/rebuild_cache.dir
