@@ -25,7 +25,7 @@
 #include <memory>
 #include "serial_utils.hpp"
 int main(int argc,char *argv[]){
-    std::unique_ptr<arduino_serial> serial = std::make_unique<arduino_serial>("/dev/ttyUSB0");
+    std::unique_ptr<arduino_serial> serial = std::make_unique<arduino_serial>("/dev/ttyUSB0", "logs/logs.txt");
     if(!serial->is_open()){
         std::cerr<<"Failed to open serial port: "<<"ttyUSB0"<<std::endl;
         return 1;
