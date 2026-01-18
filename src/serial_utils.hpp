@@ -12,26 +12,27 @@
 
 class arduino_serial {
 private:
-    std::mutex mut_w, mut_r;
     asio::io_context io_context;
     asio::serial_port serial_port;
     std::array<char, 256> read_buffer;
     std::fstream logs;
     std::string log_file;
     asio::executor_work_guard<asio::io_context::executor_type> work_guard;
+    asio::strand<asio::io_context::executor_type> strand_;
 
 public:
-    explicit arduino_serial(std::string str, std::string log_file_path) :serial_port(io_context, str),log_file(log_file_path), work_guard(asio::make_work_guard(io_context))
+    explicit arduino_serial(std::string port, std::string log_file_path)
+        : io_context(),
+        serial_port(io_context, port),
+        strand_(asio::make_strand(io_context)),
+        log_file(log_file_path),
+        work_guard(asio::make_work_guard(io_context))
     {
-        try {
-            serial_port.set_option(asio::serial_port_base::baud_rate(9600));
-            serial_port.set_option(asio::serial_port_base::character_size(8));
-        }
-        catch (const asio::system_error& e) {
-            std::cerr << "error" << e.what() << std::endl;
-        }
+        serial_port.set_option(asio::serial_port_base::baud_rate(9600));
+        serial_port.set_option(asio::serial_port_base::character_size(8));
     }
-    bool is_open() const {
+
+      bool is_open() const {
         return serial_port.is_open();
     }
     bool set_baud_rate(unsigned int baud_rate) {
@@ -58,50 +59,49 @@ public:
         log_file = str;
     }
     void read() {
-        serial_port.async_read_some(asio::buffer(read_buffer), [&](const asio::error_code& ec, std::size_t bytes_transferred) {
-            if (ec) {
-                std::cerr << "error: " << ec.message() << std::endl;
-                return;
-            }
-            std::string data(read_buffer.data(), bytes_transferred);
-            std::cout << data;
-            read(); // Continue reading
-            });
+        serial_port.async_read_some(
+            asio::buffer(read_buffer),
+            asio::bind_executor(
+                strand_,
+                [this](const asio::error_code& ec, std::size_t bytes) {
+                    if (ec) {
+                        std::cerr << "read error: " << ec.message() << "\n";
+                        return;
+                    }
+
+                    std::cout.write(read_buffer.data(), bytes);
+                    read(); // safe: same strand
+                }
+            )
+        );
     }
+
     void read_to_logs() {
-        serial_port.async_read_some(asio::buffer(read_buffer), [&](const asio::error_code& ec, std::size_t bytes_transferred) {
-            if (ec) {
-                std::cerr << "error: " << ec.message() << std::endl;
-                return;
-            }
-            {
-                std::lock_guard<std::mutex> guard(mut_r);
-                if (!logs.is_open()) logs.open(log_file, std::ios::app);
-                 
-                    std::string data(read_buffer.data(), bytes_transferred);
-                    logs << data;
-                
-            }
-                read_to_logs(); // Continue reading
-                            
-            });
+        serial_port.async_read_some(
+            asio::buffer(read_buffer),
+            asio::bind_executor(
+                strand_,
+                [this](const asio::error_code& ec, std::size_t bytes) {
+                    if (ec) {
+                        std::cerr << "read error: " << ec.message() << "\n";
+                        return;
+                    }
+
+                    if (!logs.is_open())
+                        logs.open(log_file, std::ios::app);
+
+                    logs.write(read_buffer.data(), bytes);
+                    logs.flush();
+
+                    read_to_logs(); // safe
+                }
+            )
+        );
     }
+
     void run() {
         io_context.run();
-    }
-    void write(const std::string& message) {
-        std::lock_guard<std::mutex> guard(mut_w);
-        asio::async_write(serial_port, asio::buffer(message), [&](const asio::error_code& ec, std::size_t bytes_transferred) {
-            if (ec) {
-                std::cerr << "write error: " << ec.message() << std::endl;
-                return ;
-            }
-            else {
-                std::cout << "sent: " << message << std::endl;
-            }
-            });
-        return;
-    }
+	}
     void close() {
         asio::error_code close_ec;
         serial_port.close(close_ec);
