@@ -23,17 +23,17 @@
 
 #include <iostream>
 #include <memory>
-#include "serial_utils.hpp"
-int main(int argc,char *argv[]){
-    std::unique_ptr<arduino_serial> serial = std::make_unique<arduino_serial>("/dev/ttyUSB0", "logs/logs.txt");
-    if(!serial->is_open()){
-        std::cerr<<"Failed to open serial port: "<<"ttyUSB0"<<std::endl;
+#include "Header.h"
+int main(int argc, char* argv[]) {
+    std::unique_ptr<arduino_serial> serial = std::make_unique<arduino_serial>("COM3", "logs/logs.txt");
+    if (!serial->is_open()) {
+        std::cerr << "Failed to open serial port: " << "COM3" << std::endl;
         return 1;
     }
-    std::cout<<"Serial port opened successfully: "<<" ttyUSB0"<<std::endl;
+    std::cout << "Serial port opened successfully: " << " COM3" << std::endl;
     serial->read_to_logs();
     serial->run();
-    
+
     return 0;
 
 }
